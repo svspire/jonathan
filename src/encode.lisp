@@ -1,7 +1,6 @@
 (in-package :cl-user)
 (defpackage jonathan.encode
   (:use :cl
-        :annot.doc
         :jonathan.util)
   (:import-from :fast-io
                 :fast-write-byte
@@ -25,26 +24,18 @@
            :%write-string))
 (in-package :jonathan.encode)
 
-(syntax:use-syntax :cl-annot)
+(defvar *octets* nil "Default value of octets used by #'to-json.")
 
-@doc
-"Default value of octets used by #'to-json."
-(defvar *octets* nil)
+(defvar *from* nil "Default value of from used by #'to-json.")
 
-@doc
-"Default value of from used by #'to-json."
-(defvar *from* nil)
-
-@doc
-"Stream used by #'to-json."
-(defvar *stream* nil)
+(defvar *stream* nil "Stream used by #'to-json.")
 
 (declaim (inline %write-string))
-@doc
-"Write string to *stream*."
+
 (defun %write-string (string)
   (declare (type simple-string string)
            (optimize (speed 3) (safety 0) (debug 0)))
+  "Write string to *stream*."
   (if *octets*
       (loop for c across string
             do (fast-write-byte (char-code c) *stream*))
@@ -52,11 +43,11 @@
   nil)
 
 (declaim (inline %write-char))
-@doc
-"Write character to *stream*."
+
 (defun %write-char (char)
   (declare (type character char)
            (optimize (speed 3) (safety 0) (debug 0)))
+  "Write character to *stream*."
   (if *octets*
       (fast-write-byte (char-code char) *stream*)
       (write-char char *stream*))
@@ -100,24 +91,20 @@
   `(and (consp ,list)
         (member (car ,list) '(with-object with-array))))
 
-@doc
-"Write key part of object."
 (defmacro write-key (key)
-  (declare (ignore key)))
+  (declare (ignore key))
+  "Write key part of object.")
 
-@doc
-"Write value part of object."
 (defmacro write-value (value)
-  (declare (ignore value)))
+  (declare (ignore value))
+  "Write value part of object.")
 
-@doc
-"Write key and value of object."
 (defmacro write-key-value (key value)
-  (declare (ignore key value)))
+  (declare (ignore key value))
+  "Write key and value of object.")
 
-@doc
-"Make writing object safe."
 (defmacro with-object (&body body)
+  "Make writing object safe."
   (let ((first (gensym "first")))
     `(let ((,first t))
        (macrolet ((write-key (key)
@@ -140,14 +127,12 @@
          ,@body
          (%write-char #\})))))
 
-@doc
-"Write item of array."
 (defmacro write-item (item)
-  (declare (ignore item)))
+  (declare (ignore item))
+  "Write item of array.")
 
-@doc
-"Make writing array safe."
 (defmacro with-array (&body body)
+  "Make writing array safe."
   (let ((first (gensym "first")))
     `(let ((,first t))
        (macrolet ((write-item (item)
@@ -162,9 +147,8 @@
          ,@body
          (%write-char #\])))))
 
-@doc
-"Bind *stream* to stream."
 (defmacro with-output ((stream) &body body)
+  "Bind *stream* to stream."
   `(let ((*stream* ,stream))
      ,@body))
 
@@ -189,10 +173,9 @@
     (loop for item in list
           do (write-item item))))
 
-@doc
-"Convert LISP object to JSON String."
 (defun to-json (obj &key (octets *octets*) (from *from*))
   (declare (optimize (speed 3) (safety 0) (debug 0)))
+  "Convert LISP object to JSON String."
   (let ((*stream* (if octets
                       (make-output-buffer :output :vector)
                       (make-string-output-stream)))
@@ -203,9 +186,8 @@
         (finish-output-buffer *stream*)
         (get-output-stream-string *stream*))))
 
-@doc
-"Write obj as JSON string."
-(defgeneric %to-json (obj))
+(defgeneric %to-json (obj)
+  (:documentation "Write obj as JSON string."))
 
 (defmethod %to-json ((string string))
   (if (typep string 'simple-string)

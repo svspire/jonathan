@@ -1,7 +1,6 @@
 (in-package :cl-user)
 (defpackage jonathan.helper
   (:use :cl
-        :annot.doc
         :jonathan.error
         :jonathan.util
         :jonathan.encode)
@@ -20,20 +19,64 @@
                 :starts-with-subseq)
   (:import-from :trivial-types
                 :proper-list-p)
-  (:import-from :annot.util
-                :progn-form-last
-                :progn-form-replace-last)
   (:export :with-output-to-string*
            :compile-encoder))
 (in-package :jonathan.helper)
 
-(syntax:use-syntax :annot)
-
 (defvar *compile-encoder-prefix* "jonathan-encoder")
 
-@doc
-"Output *stream* as string."
+;;; Copied from cl-annot;utils to remove that dependency
+
+(defun macrop (symbol)
+  "Return non-nil if SYMBOL is a macro."
+  (and (symbolp symbol)
+       (macro-function symbol)
+       t))
+
+(defun macroexpand-until-normal-form (form)
+  "Expand FORM until it brecomes normal-form."
+  (if (and (consp form)
+           (macrop (car form))
+           (let ((package (symbol-package (car form))))
+             (and package
+                  (member package
+                          (list (find-package :cl)
+                                #+clisp (find-package :clos))))))
+      (values form nil)
+      (multiple-value-bind (new-form expanded-p)
+          (macroexpand-1 form)
+        (if (or (not expanded-p) (null new-form))
+            (values form nil)
+            (values (macroexpand-until-normal-form new-form) t)))))
+
+(defun progn-form-last (progn-form)
+  "Return the last form of PROGN-FORM which should be evaluated at
+last. If macro forms seen, the macro forms will be expanded using
+MACROEXPAND-UNTIL-NORMAL-FORM."
+  (let ((progn-form (macroexpand-until-normal-form progn-form)))
+    (if (and (consp progn-form)
+             (eq (car progn-form) 'progn))
+        (progn-form-last (car (last progn-form)))
+        progn-form)))
+
+(defun progn-form-replace-last (last progn-form)
+  "Replace the last form of PROGN-FORM with LAST. If LAST is a
+function, the function will be called with the last form and used for
+replacing. If macro forms seen, the macro forms will be expanded using
+MACROEXPAND-UNTIL-NORMAL-FORM."
+  (let ((progn-form (macroexpand-until-normal-form progn-form)))
+    (if (and (consp progn-form)
+             (eq (car progn-form) 'progn))
+        `(,@(butlast progn-form)
+            ,(progn-form-replace-last last (car (last progn-form))))
+        (if (functionp last)
+            (funcall last progn-form)
+            last))))
+
+;;; End of cl-annot stuff
+
 (defmacro with-output-to-string* (&body body)
+  "Output *stream* as string."
   `(with-output-to-string (stream)
      (with-output (stream)
        ,@body)))
@@ -124,9 +167,8 @@
                              (t (swap object (genstr)))))))))
         (values (sub form) placeholders)))))
 
-@doc
-"Compile encoder."
 (defmacro compile-encoder ((&key octets from return-form) (&rest args) &body body)
+  "Compile encoder."
   (check-args args)
   (let* ((main (last-elt body))
          (progn-p (and (consp main)
