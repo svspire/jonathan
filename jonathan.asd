@@ -7,14 +7,12 @@
   :version "0.1"
   :author "Rudolph-Miller"
   :license "MIT"
-  :depends-on (:cl-syntax
-               :cl-syntax-annot
-               :fast-io
+  :depends-on (:fast-io
                :trivial-types
                :babel
                :proc-parse
                :cl-ppcre
-               :cl-annot)
+               )
   :components ((:module "src"
                 :components
                 ((:file "jonathan" :depends-on ("encode" "decode" "helper" "error"))
